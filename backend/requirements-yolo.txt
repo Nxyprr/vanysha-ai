@@ -1,0 +1,3 @@
+# Opcional: detección con YOLO (reconoce 80 clases; con un modelo propio, cascos, chalecos y defectos).
+# Instala además PyTorch según tu equipo (con GPU NVIDIA: https://pytorch.org/get-started/locally/)
+ultralytics>=8.2

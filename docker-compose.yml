@@ -1,0 +1,14 @@
+services:
+  vanysha:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - vanysha-data:/data
+    environment:
+      VANYSHA_ADMIN_PASSWORD: "${VANYSHA_ADMIN_PASSWORD:-Vanysha2026}"
+      VANYSHA_SECRET: "${VANYSHA_SECRET:-}"
+      VANYSHA_DETECTOR: "${VANYSHA_DETECTOR:-auto}"
+    restart: unless-stopped
+volumes:
+  vanysha-data:

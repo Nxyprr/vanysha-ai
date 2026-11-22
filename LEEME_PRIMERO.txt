@@ -1,0 +1,28 @@
+VANYSHA AI - COMO ENCENDERLO (3 pasos)
+
+1) Descomprime este ZIP (clic derecho > Extraer todo). No lo abras desde dentro del zip.
+
+2) Haz DOBLE CLIC en:
+      Windows ........ INICIAR_WINDOWS.bat
+      Mac ............ INICIAR_MAC_LINUX.command
+         (si Mac lo bloquea: clic derecho > Abrir > Abrir)
+      Linux .......... en la terminal:  bash INICIAR_MAC_LINUX.command
+
+   La primera vez instala lo necesario y tarda unos minutos (necesita internet).
+   Si no tienes Python, en Windows intenta instalarlo solo.
+   Las siguientes veces enciende en segundos.
+
+3) Se abre el navegador solo. Entra con:
+      Correo:      admin@vanysha.ai
+      Contrasena:  Vanysha2026
+
+PARA APAGARLO: cierra la ventana negra.
+
+SOLO QUIERO VER LA DEMO (sin instalar nada):
+   Haz doble clic en  frontend\index.html  (funciona sin servidor, con datos de ejemplo).
+
+AGREGAR USUARIOS: entra como administradora > menu Usuarios > Crear cuenta.
+
+ALERTAS CON SONIDO: suenan solas en cualquier seccion (el sonido se activa al iniciar sesion).
+
+PUBLICAR UN LINK: lee la seccion "Publicar en un link" del README.md.
