@@ -1,11 +1,13 @@
-"""Motores de detección intercambiables (patrón adaptador del documento: DEMO -> REAL).
 
-  yolo : YOLO (ultralytics). Reconoce 80 clases COCO; con un modelo propio reconoce cascos, chalecos, defectos...
-  hog  : HOG de OpenCV. Detecta personas sin descargar ningún modelo (funciona sin internet).
-  demo : no analiza video real; devuelve resultados de ejemplo.
+"""Motores de detección intercambiables para Vanysha AI.
 
-Todas las detecciones salen normalizadas (0 a 1): {"c": clase, "p": confianza, "x","y","w","h"}.
+  yolo : detector especializado en cascos, chalecos y personas.
+  hog  : detector OpenCV para personas.
+  demo : resultados simulados, no analiza video real.
+
+Todas las detecciones usan coordenadas normalizadas (0 a 1).
 """
+
 import logging
 from pathlib import Path
 from typing import List
@@ -38,18 +40,46 @@ class HogDetector(Detector):
     def detect(self, frame):
         h, w = frame.shape[:2]
         scale = 480.0 / w if w > 480 else 1.0
-        small = cv2.resize(frame, (int(w * scale), int(h * scale))) if scale != 1.0 else frame
+        small = cv2.resize(
+            frame, (int(w * scale), int(h * scale))
+        ) if scale != 1.0 else frame
+
         sh, sw = small.shape[:2]
-        rects, weights = self.hog.detectMultiScale(small, winStride=(8, 8), padding=(8, 8), scale=1.05)
+        rects, weights = self.hog.detectMultiScale(
+            small,
+            winStride=(8, 8),
+            padding=(8, 8),
+            scale=1.05,
+        )
+
         if len(rects) == 0:
             return []
-        boxes = [[int(x), int(y), int(rw), int(rh)] for (x, y, rw, rh) in rects]
-        scores = [float(min(0.99, max(0.4, 0.4 + 0.2 * wt))) for wt in np.ravel(weights)]
-        keep = np.array(cv2.dnn.NMSBoxes(boxes, scores, 0.3, 0.4)).flatten()
+
+        boxes = [
+            [int(x), int(y), int(rw), int(rh)]
+            for (x, y, rw, rh) in rects
+        ]
+        scores = [
+            float(min(0.99, max(0.4, 0.4 + 0.2 * wt)))
+            for wt in np.ravel(weights)
+        ]
+
+        keep = np.array(
+            cv2.dnn.NMSBoxes(boxes, scores, 0.3, 0.4)
+        ).flatten()
+
         out = []
         for i in keep:
             x, y, rw, rh = boxes[int(i)]
-            out.append({"c": "person", "p": round(scores[int(i)], 3), "x": x / sw, "y": y / sh, "w": rw / sw, "h": rh / sh})
+            out.append({
+                "c": "person",
+                "p": round(scores[int(i)], 3),
+                "x": x / sw,
+                "y": y / sh,
+                "w": rw / sw,
+                "h": rh / sh,
+            })
+
         return out
 
 
@@ -57,27 +87,80 @@ class YoloDetector(Detector):
     real = True
 
     def __init__(self, path: str, conf: float):
-        from ultralytics import YOLO  # import perezoso: solo si se usa
-        self.model = YOLO(path)
+        from ultralytics import YOLO
+
+        model_path = Path(path)
+        if not model_path.is_absolute():
+            model_path = Path(__file__).resolve().parents[1] / model_path
+
+        if not model_path.is_file():
+            raise FileNotFoundError(
+                f"No se encontró el modelo YOLO: {model_path}"
+            )
+
+        self.model = YOLO(str(model_path))
         self.conf = conf
-        self.name = "YOLO (%s)" % Path(path).stem
+        self.name = f"YOLO EPP ({model_path.stem})"
+
+        log.info("Modelo YOLO cargado. Clases: %s", self.model.names)
 
     def detect(self, frame):
-        r = self.model.predict(frame, conf=self.conf, verbose=False)[0]
+        results = self.model.predict(
+            source=frame,
+            conf=self.conf,
+            verbose=False,
+            device="cpu",
+        )
+
+        result = results[0]
         h, w = frame.shape[:2]
         out = []
-        for b in r.boxes:
-            x1, y1, x2, y2 = b.xyxy[0].tolist()
-            out.append({"c": r.names[int(b.cls[0])], "p": round(float(b.conf[0]), 3),
-                        "x": x1 / w, "y": y1 / h, "w": (x2 - x1) / w, "h": (y2 - y1) / h})
+
+        class_map = {
+            "hat": "helmet",
+            "nohat": "no_helmet",
+            "novest": "no_vest",
+            "person": "person",
+            "vest": "vest",
+        }
+
+        for box in result.boxes:
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
+            class_id = int(box.cls[0])
+            class_name = result.names[class_id]
+            class_name = class_map.get(class_name, class_name)
+
+            out.append({
+                "c": class_name,
+                "p": round(float(box.conf[0]), 3),
+                "x": max(0.0, x1 / w),
+                "y": max(0.0, y1 / h),
+                "w": min(1.0, (x2 - x1) / w),
+                "h": min(1.0, (y2 - y1) / h),
+            })
+
         return out
 
 
 _DEMO = {
-    "seg": [("person", .96, .12, .2, .2, .68), ("person", .94, .58, .24, .2, .64), ("no_vest", .88, .58, .38, .2, .25)],
-    "alm": [("forklift", .90, .6, .38, .28, .42), ("person", .95, .2, .46, .12, .42)],
-    "cal": [("producto", .97, .25, .18, .5, .62), ("defecto", .86, .53, .46, .14, .14)],
-    "ret": [("person", .95, .1, .4, .1, .46), ("person", .92, .3, .44, .1, .42), ("person", .9, .55, .38, .1, .48)],
+    "seg": [
+        ("person", .96, .12, .2, .2, .68),
+        ("person", .94, .58, .24, .2, .64),
+        ("no_vest", .88, .58, .38, .2, .25),
+    ],
+    "alm": [
+        ("forklift", .90, .6, .38, .28, .42),
+        ("person", .95, .2, .46, .12, .42),
+    ],
+    "cal": [
+        ("producto", .97, .25, .18, .5, .62),
+        ("defecto", .86, .53, .46, .14, .14),
+    ],
+    "ret": [
+        ("person", .95, .1, .4, .1, .46),
+        ("person", .92, .3, .44, .1, .42),
+        ("person", .9, .55, .38, .1, .48),
+    ],
 }
 
 
@@ -89,17 +172,50 @@ class DemoDetector(Detector):
         return []
 
     def detect_scenario(self, frame, scenario):
-        return [{"c": c, "p": p, "x": x, "y": y, "w": w, "h": h} for (c, p, x, y, w, h) in _DEMO.get(scenario, _DEMO["seg"])]
+        return [
+            {
+                "c": c,
+                "p": p,
+                "x": x,
+                "y": y,
+                "w": w,
+                "h": h,
+            }
+            for c, p, x, y, w, h
+            in _DEMO.get(scenario, _DEMO["seg"])
+        ]
 
 
-def build_detector(kind: str = "auto", model_path: str = "yolov8n.pt", conf: float = 0.4) -> Detector:
-    order = {"auto": ["yolo", "hog"], "yolo": ["yolo"], "hog": ["hog"], "demo": []}.get(kind, ["yolo", "hog"])
-    for k in order:
+def build_detector(
+    kind: str = "auto",
+    model_path: str = "models/yolo11n_safety.pt",
+    conf: float = 0.4,
+) -> Detector:
+
+    order = {
+        "auto": ["yolo", "hog"],
+        "yolo": ["yolo"],
+        "hog": ["hog"],
+        "demo": [],
+    }.get(kind, ["yolo", "hog"])
+
+    for detector_type in order:
         try:
-            d = YoloDetector(model_path, conf) if k == "yolo" else HogDetector()
-            log.info("Detector activo: %s", d.name)
-            return d
-        except Exception as e:  # noqa: BLE001
-            log.warning("No se pudo iniciar '%s': %s", k, e)
+            detector = (
+                YoloDetector(model_path, conf)
+                if detector_type == "yolo"
+                else HogDetector()
+            )
+
+            log.info("Detector activo: %s", detector.name)
+            return detector
+
+        except Exception as error:
+            log.warning(
+                "No se pudo iniciar '%s': %s",
+                detector_type,
+                error,
+            )
+
     log.info("Detector activo: DEMO")
     return DemoDetector()

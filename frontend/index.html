@@ -429,7 +429,26 @@ else if(a==='uadd')addUser();
 else if(a==='udel'){if(cur.cf===v){const u=users.find(x=>x.id===v);users=users.filter(x=>x.id!==v);saveU();logE('Cuenta eliminada: '+(u?u.email:v));save();cur.cf=null;toast('Cuenta eliminada');route()}else{cur.cf=v;cur.still=true;route()}}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='lem'||e.target.id==='lpw'))doLogin()});
 const cam={run:false,tr:[],nid:0,f:0,l:0,ui:0,fps:0,zone:[.55,.18,.4,.7],cool:0,zt:0,shots:[],act:[],det:[],np:0,nobj:0,mv:0,inf:0,ail:0,busy:false,draw:false,dr:null,mode:'',model:null,bg:null,raf:0,stream:null};
-const ES={person:'persona','cell phone':'celular',bottle:'botella',laptop:'laptop',cup:'taza',chair:'silla',book:'libro',keyboard:'teclado',mouse:'mouse',tv:'monitor',backpack:'mochila',handbag:'bolso',scissors:'tijeras',clock:'reloj'};
+const ES = {
+    person: 'persona',
+    helmet: 'casco',
+    no_helmet: 'sin casco',
+    vest: 'chaleco',
+    no_vest: 'sin chaleco',
+    'cell phone': 'celular',
+    bottle: 'botella',
+    laptop: 'laptop',
+    cup: 'taza',
+    chair: 'silla',
+    book: 'libro',
+    keyboard: 'teclado',
+    mouse: 'mouse',
+    tv: 'monitor',
+    backpack: 'mochila',
+    handbag: 'bolso',
+    scissors: 'tijeras',
+    clock: 'reloj'
+};
 T.comando='Dashboard';T.camara='Cámara en vivo';V.camara=vCamara;NAV[0][1].splice(1,0,'camara');ACC.supervisor.push('camara');ACC.operador.push('camara');
 IC2.camara=`<path d='M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' fill='currentColor' fill-opacity='.18'/><circle cx='12' cy='13' r='3.6'/>`;
 function vCamara(){return `<div class='camg'><section class='card rv'><div class='vbox' id='vbx'><video id='cv' playsinline muted></video><canvas id='co'></canvas><div class='hudt'><span class='chip a'><i class='pd r'></i>Modo REAL · cámara local</span><span class='chip' id='ceng'>Motor: apagado</span><span class='chip' id='cfps'>0 FPS</span></div><div class='cmsg' id='cmsg'><div><div class='lens'>${ico('camara')}</div><b>Cámara en vivo</b><p class='mut' id='cnote'>Activa tu cámara para analizar video real: seguimiento de objetos, zona restringida y alertas con sonido.</p></div></div></div><div class='ctr'><button class='go' data-act='cstart'>Activar cámara</button><button class='sm' data-act='cstop'>Detener</button><button class='sm' data-act='czone'>Dibujar zona</button><button class='sm' data-act='cshot'>Capturar evidencia</button><label class='sm'>Usar un video<input type='file' id='cfile' accept='video/*' hidden></label></div></section><section class='card rv' style='--i:2'><h3>Estado en vivo</h3><div class='stat'><div><span>Personas</span><b id='cper'>0</b></div><div><span>Objetos</span><b id='cobj'>0</b></div><div><span>Movimiento</span><b id='cmov'>0 %</b></div><div><span>Latencia IA</span><b id='clat'>—</b></div></div><canvas id='spk' width='300' height='60' style='margin:12px 0 4px;width:100%;height:60px'></canvas><p class='mut'><small>Actividad reciente. El video se procesa en tu navegador: no se envía ni se guarda.</small></p><h3>Evidencias</h3><div class='gal' id='gal'></div></section></div>`}
@@ -535,7 +554,9 @@ return{pct,blobs:B.map(b=>{const w=(b.x1-b.x0+1)/W,h=(b.y1-b.y0+1)/H;return{x:b.
 function motion2(v){const W=96,H=72,g=cam.g||(cam.g=document.createElement('canvas'));g.width=W;g.height=H;const x=g.getContext('2d',{willReadFrequently:true});x.drawImage(v,0,0,W,H);const d=x.getImageData(0,0,W,H).data,fr=new Float32Array(W*H);for(let i=0;i<W*H;i++)fr[i]=d[i*4]*.3+d[i*4+1]*.59+d[i*4+2]*.11;return motionCore(fr,W,H)}
 const ovl=(a,b)=>{const x1=Math.max(a.x,b.x),y1=Math.max(a.y,b.y),x2=Math.min(a.x+a.w,b.x+b.w),y2=Math.min(a.y+a.h,b.y+b.h),i=Math.max(0,x2-x1)*Math.max(0,y2-y1);return i>0&&(i/Math.min(a.w*a.h,b.w*b.h)>.25)};
 function camLoop2(ts){if(!cam.run)return;cam.raf=requestAnimationFrame(camLoop2);const v=$('#cv'),o=$('#co');if(!v||!o||v.readyState<2||!v.videoWidth)return;const dt=ts-cam.l;if(dt<55)return;cam.l=ts;cam.f++;cam.fps=cam.fps*.85+(1000/dt)*.15;const W=o.clientWidth,H=o.clientHeight;if(o.width!==W||o.height!==H){o.width=W;o.height=H}let D=[];
-if(cam.mode==='ia'){if(!cam.busy&&cam.model&&ts-cam.ail>90){cam.busy=true;const t0=performance.now();cam.model.detect(v,30).then(r=>{cam.inf=performance.now()-t0;cam.ail=ts;cam.det=r.filter(d=>d.score>=(d.class==='person'?.35:.45)).map(d=>({c:ES[d.class]||d.class,x:d.bbox[0]/v.videoWidth,y:d.bbox[1]/v.videoHeight,w:d.bbox[2]/v.videoWidth,h:d.bbox[3]/v.videoHeight,p:d.score,person:d.class==='person'}));cam.busy=false}).catch(()=>{cam.busy=false})}D=cam.det.slice();const m=motion2(v);cam.mv=m.pct;m.blobs.forEach(b=>{const d={c:b.tall?'posible persona':'movimiento',x:b.x,y:b.y,w:b.w,h:b.h,p:Math.min(.95,.55+b.a*6),person:false,mv:true};if(!D.some(f=>ovl(f,d)))D.push(d)})}
+if(cam.mode==='ia'){if(!cam.busy&&cam.model&&ts-cam.ail>90){cam.busy=true;const t0=performance.now();cam.model.detect(v,30).then(r=>{cam.inf=performance.now()-t0;cam.ail=ts;cam.det=r.filter(d=>d.score>=(d.class==='person'?.35:.45)).map(d=>({c:ES[d.class]||d.class,x:d.bbox[0]/v.videoWidth,y:d.bbox[1]/v.videoHeight,w:d.bbox[2]/v.videoWidth,h:d.bbox[3]/v.videoHeight,p:d.score,person:d.class==='person'||d.class==='persona'}));cam.busy=false}).catch(()=>{cam.busy=false})}D=cam.det.slice();
+const m=motion2(v);
+cam.mv=m.pct;}
 else{const F=faceTrack(faces(v,[0,10,0,-10][cam.f%4])),m=motion2(v);cam.mv=m.pct;D=F.map(f=>({c:'rostro',x:f.x,y:f.y,w:f.w,h:f.h,p:f.p,person:true}));m.blobs.forEach(b=>{const d={c:b.tall?'posible persona':'movimiento',x:b.x,y:b.y,w:b.w,h:b.h,p:Math.min(.95,.55+b.a*6),person:false,mv:true};if(!D.some(f=>f.person&&ovl(f,d)))D.push(d)})}
 track(D);const z=cam.zone;let inz=false,inm=false;D.forEach(d=>{const cx=d.x+d.w/2,cy=d.y+d.h/2,inside=cx>z[0]&&cx<z[0]+z[2]&&cy>z[1]&&cy<z[1]+z[3],big=d.w*d.h>.012;d.al=inside&&(d.person||(d.mv&&big));if(inside&&d.person)inz=true;else if(inside&&d.mv&&big)inm=true});cam.nobj=D.length;cam.np=D.filter(d=>d.person).length;
 cam.zt=inz?cam.zt+dt:Math.max(0,cam.zt-dt*2);cam.zm=inm?(cam.zm||0)+dt:Math.max(0,(cam.zm||0)-dt*2);

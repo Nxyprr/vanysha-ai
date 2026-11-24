@@ -52,7 +52,7 @@ ADMIN_NAME = os.getenv("VANYSHA_ADMIN_NAME", "Administradora")
 
 # Motor de detección: auto | yolo | hog | demo
 DETECTOR = os.getenv("VANYSHA_DETECTOR", "auto").lower()
-MODEL_PATH = os.getenv("VANYSHA_MODEL", "yolov8n.pt")
+MODEL_PATH = os.getenv("VANYSHA_MODEL", "models/yolo11n_safety.pt")
 CONFIDENCE = float(os.getenv("VANYSHA_CONF", "0.4"))
 
 # Datos de ejemplo al crear la base de datos por primera vez (0 para empezar vacío)
