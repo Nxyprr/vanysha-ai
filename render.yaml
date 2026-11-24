@@ -11,6 +11,6 @@ services:
       - key: VANYSHA_SECRET
         generateValue: true
       - key: VANYSHA_DETECTOR
-        value: hog
+        value: auto
       - key: VANYSHA_DEMO_DATA
         value: "1"
