@@ -3,15 +3,20 @@ FROM python:3.12-slim
 
 WORKDIR /srv
 
-# Copiar dependencias
+# Bibliotecas del sistema necesarias para OpenCV
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libxcb1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Dependencias de Python
 COPY backend/requirements.txt backend/requirements.txt
 COPY backend/requirements-yolo.txt backend/requirements-yolo.txt
 
-# Instalar dependencias generales y YOLO
 RUN pip install --no-cache-dir -r backend/requirements.txt \
     && pip install --no-cache-dir -r backend/requirements-yolo.txt
 
-# Copiar aplicación y modelo
+# Aplicación y modelo
 COPY backend backend
 COPY frontend frontend
 
