@@ -1,11 +1,9 @@
-
-FROM python:3.12-slim
+﻿FROM python:3.12-slim
 
 WORKDIR /srv
 
-# Bibliotecas del sistema necesarias para OpenCV
+# Dependencias basicas del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libxcb1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -14,9 +12,11 @@ COPY backend/requirements.txt backend/requirements.txt
 COPY backend/requirements-yolo.txt backend/requirements-yolo.txt
 
 RUN pip install --no-cache-dir -r backend/requirements.txt \
-    && pip install --no-cache-dir -r backend/requirements-yolo.txt
+    && pip install --no-cache-dir -r backend/requirements-yolo.txt \
+    && pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless opencv-contrib-python-headless \
+    && pip install --no-cache-dir --no-deps --force-reinstall "opencv-python-headless>=4.9,<5"
 
-# Aplicación y modelo
+# Aplicacion y modelo
 COPY backend backend
 COPY frontend frontend
 
