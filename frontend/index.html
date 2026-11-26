@@ -589,9 +589,56 @@ async function doLogin(){if(!API.on)return doLoginLocal();if(cur.busy)return;con
 async function addUser(){if(!API.on)return addUserLocal();const g=id=>$('#'+id).value.trim(),nm=g('unm'),em=g('uem'),cg=g('ucg'),rl=$('#url').value,pw=$('#upw').value,er=$('#uer');if(nm.length<3){er.textContent='Escribe el nombre completo.';return}if(pw.length<8){er.textContent='La contrase\u00f1a debe tener al menos 8 caracteres.';return}try{await api('/api/users',{method:'POST',json:{name:nm,email:em,cargo:cg||null,role:rl,password:pw}});users=await api('/api/users');toast('Cuenta creada: '+nm);route()}catch(e){er.textContent=e.message}}
 async function apiPush(rec,al){try{await api('/api/analyses',{method:'POST',json:{scenario:rec.sc,profile:rec.prof,duration:rec.dur,confidence:rec.conf,objects:rec.obj,alert:!!al}});await syncApi()}catch(e){toast(e.message)}}
 function connectEvents(){if(API.ev){try{API.ev.close()}catch(e){}}const ws=new WebSocket(wsUrl('/ws/events'));API.ev=ws;ws.onmessage=m=>{let j;try{j=JSON.parse(m.data)}catch(e){return}if(j.type!=='alert'||st.al.some(x=>x.id===j.alert.id))return;st.al.unshift(j.alert);if(j.analysis)st.an.unshift(j.analysis);if(j.evidence){cam.shots.unshift('/api/alerts/'+j.alert.id+'/evidence?token='+encodeURIComponent(API.tok));if(cam.shots.length>6)cam.shots.pop();galUI()}cur.still=true;notify(j.alert);const v=key(),ed=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);if(v==='comando'||v==='auditoria'||v==='historial'||(v==='alertas'&&!ed))route();else buildNav(v)};ws.onclose=()=>{if(API.ev===ws&&cur.user&&API.tok)setTimeout(()=>{if(cur.user&&API.tok)connectEvents()},3000)}}
-function wsModel(){return new Promise(res=>{const ws=new WebSocket(wsUrl('/ws/detect'));let pend=null;const q=document.createElement('canvas'),x=q.getContext('2d');
-const m={srv:true,name:'servidor',close:()=>{try{ws.close()}catch(e){}},detect:v=>new Promise(ok=>{if(ws.readyState!==1)return ok([]);const w=640,h=Math.round(640*v.videoHeight/v.videoWidth);q.width=w;q.height=h;x.drawImage(v,0,0,w,h);pend=ok;setTimeout(()=>{if(pend===ok){pend=null;ok([])}},1500);q.toBlob(b=>{if(!b||ws.readyState!==1)return;ws.send(JSON.stringify({zone:cam.zone}));ws.send(b)},'image/jpeg',.6)})};
-ws.onopen=()=>res(m);ws.onerror=()=>res(null);ws.onmessage=e=>{let j;try{j=JSON.parse(e.data)}catch(x2){return}if(j.type==='hello'){m.name=j.detector;setEng('IA real \u00b7 '+j.detector)}else if(j.type==='dets'&&pend){const f=pend,vv=$('#cv');pend=null;f(vv?(j.dets||[]).map(d=>({class:d.c,score:d.p,bbox:[d.x*vv.videoWidth,d.y*vv.videoHeight,d.w*vv.videoWidth,d.h*vv.videoHeight]})):[])}};setTimeout(()=>res(null),4000)})}
+function wsModel(){return new Promise(res=>{
+const ws=new WebSocket(wsUrl('/ws/detect'));
+let pending=null,settled=false;
+const q=document.createElement('canvas'),x=q.getContext('2d');
+const finish=(value)=>{if(!settled){settled=true;res(value)}};
+const failPending=()=>{if(pending){const f=pending;pending=null;f([])}};
+const m={
+ srv:true,name:'YOLO EPP',
+ close:()=>{failPending();try{ws.close()}catch(e){}},
+ detect:v=>new Promise(ok=>{
+   if(ws.readyState!==1||pending||!v||!v.videoWidth||!v.videoHeight){ok([]);return}
+   const w=640,h=Math.max(1,Math.round(640*v.videoHeight/v.videoWidth));
+   q.width=w;q.height=h;
+   try{x.drawImage(v,0,0,w,h)}catch(e){ok([]);return}
+   pending=ok;
+   q.toBlob(b=>{
+     if(!pending)return;
+     if(!b||ws.readyState!==1){failPending();return}
+     try{
+       ws.send(JSON.stringify({zone:cam.zone}));
+       ws.send(b);
+     }catch(e){failPending()}
+   },'image/jpeg',.72);
+ })
+};
+ws.onopen=()=>finish(m);
+ws.onerror=()=>{failPending();finish(null)};
+ws.onclose=()=>{
+ failPending();
+ if(!settled)finish(null);
+ if(cam.model===m){
+   cam.model=null;
+   if(cam.run)setTimeout(()=>{if(cam.run&&!cam.model)startAI()},1200);
+ }
+};
+ws.onmessage=e=>{
+ let j;try{j=JSON.parse(e.data)}catch(x2){return}
+ if(j.type==='hello'){
+   m.name=j.detector||'YOLO EPP';
+   setEng('IA real · '+m.name);
+ }else if(j.type==='dets'&&pending){
+   const f=pending,vv=$('#cv');pending=null;
+   f(vv?(j.dets||[]).map(d=>({
+     class:d.c,score:d.p,
+     bbox:[d.x*vv.videoWidth,d.y*vv.videoHeight,d.w*vv.videoWidth,d.h*vv.videoHeight]
+   })):[]);
+ }
+};
+setTimeout(()=>{if(!settled){try{ws.close()}catch(e){}finish(null)}},6000);
+})}
 async function loadAI(){return API.on?wsModel():loadAILocal()}
 function camAlert(r,m,sev){if(API.on)return;camAlertLocal(r,m,sev)}
 const _camStop0=camStop;camStop=function(){if(cam.model&&cam.model.srv){cam.model.close();cam.model=null}_camStop0()};
