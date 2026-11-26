@@ -110,6 +110,8 @@ class YoloDetector(Detector):
             conf=self.conf,
             verbose=False,
             device="cpu",
+            imgsz=416,
+            max_det=50,
         )
 
         result = results[0]
