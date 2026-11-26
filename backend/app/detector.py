@@ -118,18 +118,32 @@ class YoloDetector(Detector):
         h, w = frame.shape[:2]
         out = []
 
+        # Normaliza los nombres del modelo de EPP para que las reglas
+        # y la interfaz reciban siempre las mismas clases.
         class_map = {
-            "hat": "helmet",
-            "nohat": "no_helmet",
-            "novest": "no_vest",
             "person": "person",
+            "persona": "person",
+            "hat": "helmet",
+            "hardhat": "helmet",
+            "helmet": "helmet",
+            "safety_helmet": "helmet",
+            "nohat": "no_helmet",
+            "no_hat": "no_helmet",
+            "nohelmet": "no_helmet",
+            "no_helmet": "no_helmet",
+            "no_hardhat": "no_helmet",
+            "novest": "no_vest",
+            "no_vest": "no_vest",
+            "no_safety_vest": "no_vest",
             "vest": "vest",
+            "safety_vest": "vest",
         }
 
         for box in result.boxes:
             x1, y1, x2, y2 = box.xyxy[0].tolist()
             class_id = int(box.cls[0])
-            class_name = result.names[class_id]
+            class_name = str(result.names[class_id]).strip().lower()
+            class_name = class_name.replace("-", "_").replace(" ", "_")
             class_name = class_map.get(class_name, class_name)
 
             out.append({
